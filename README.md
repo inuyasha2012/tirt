@@ -5,7 +5,7 @@ the simulation of Thurstone Item Response Theory, include fixed forced test and 
 瑟斯顿IRT模型主要应用于迫选式非认知测验（人格测验，动机测验，兴趣测验等）。
 瑟斯顿IRT模型同时也是一种多维项目反应理论（MIRT）模型。
 
-###迫选式非认知测验
+### 迫选式非认知测验
 迫选测验形式可以如下
 
 陈述 | 最符合 | 最不符合
@@ -30,18 +30,18 @@ the simulation of Thurstone Item Response Theory, include fixed forced test and 
 pip install tirt
 ```
 
-##TIRT简介
+## TIRT简介
 
-###题型
+### 题型
 支持三选二（一题三个陈述，选最符合和最不符合）和二选一（一题两个陈述，选最符合）
 
-###模型
+### 模型
 支持probit和logistic两种，如果你用的是mplus的WLSMV算法进行的项目参数估计，建议你使用probit模型
 
-###参数估计
+### 参数估计
 支持极大似然估计（ml）和贝叶斯极大后验（map）
 
-###迭代算法
+### 迭代算法
 支持牛顿迭代和梯度上升，梯度上升更稳健，考虑加入更稳健的迭代加权最小二乘估计
 
 ## 固定测验模拟
@@ -101,5 +101,5 @@ model.sim()
 print model.get_consistency_scores()
 ```
 
-##API
+## API
 详见源码注释

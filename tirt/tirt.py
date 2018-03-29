@@ -1,8 +1,9 @@
 # coding=utf-8
+from __future__ import unicode_literals, print_function, absolute_import
 import numpy as np
 from scipy.stats import norm
-from exception import ConvergenceError, ItemParamError, ScoreError, ThetaError, IterMethodError
-from utils import cached_property
+from .exception import ConvergenceError, ItemParamError, ScoreError, ThetaError, IterMethodError
+from .utils import cached_property
 
 
 class BaseModel(object):
@@ -18,7 +19,7 @@ class BaseModel(object):
     # 参数估计精度
     _tol = 1e-5
 
-    def __init__(self, slop, threshold, init_theta=None, score=None, iter_method='newton'):
+    def __init__(self, slop, threshold, init_theta=None, score=None, iter_method='newton', sigma=None):
         """
         不管是probit还是logit，都是用一样的参数估计算法，
         基于牛顿迭代的极大似然算法和贝叶斯最大后验算法
@@ -55,8 +56,10 @@ class BaseModel(object):
         self._threshold = threshold
         self._init_theta = init_theta if init_theta is not None else np.zeros(len(self._slop[0]))
         # 默认bayes先验正态分布标准差
-        # TODO 改为根据样本估计
-        self._inv_psi = np.identity(len(self._slop[0]))
+        if sigma is None:
+            self._inv_psi = np.identity(len(self._slop[0]))
+        else:
+            self._inv_psi = np.linalg.inv(sigma)
         self._iter_method = iter_method
 
     @property
@@ -154,7 +157,7 @@ class BaseLogitModel(BaseModel):
         :param prob_val: ndarray(float)，作答为1概率的向量值
         :return: 
         """
-        return self.D * np.dot(self._slop.transpose(), self._score -prob_val)
+        return self.D * np.dot(self._slop.transpose(), self._score - prob_val)
 
     def _expect(self, prob_val):
         return self.D ** 2 * np.dot(self._slop.transpose() * prob_val * (1 - prob_val), self._slop)
@@ -268,7 +271,7 @@ class MLProbitModel(BaseProbitModel):
 
     def _get_hessian_n_jacobian(self, theta):
         h, prob_val, w = self._get_h_prob_val_w(theta)
-        hes = np.linalg.inv(self._ddloglik(theta, w))
+        hes = np.linalg.pinv(self._ddloglik(theta, w))
         jac = self._dloglik(theta, prob_val, h, w)
         return hes, jac
 
@@ -282,7 +285,7 @@ class BayesProbitModel(BaseProbitModel):
     # 贝叶斯modal估计
 
     def _bayes_dloglik(self, theta, prob_val, h, w):
-        return self._dloglik(theta, prob_val, h, w) - theta
+        return self._dloglik(theta, prob_val, h, w) - np.dot(self._inv_psi, theta)
 
     def _bayes_ddloglik(self, theta, w):
         return self._ddloglik(theta, w) - self._inv_psi

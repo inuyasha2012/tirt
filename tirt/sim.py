@@ -1,10 +1,12 @@
 # coding=utf-8
+from __future__ import unicode_literals, print_function, absolute_import
 import math
 import numpy as np
-from exception import UnknownModelError, IterMethodError
-from utils import gen_item_dict, random_params, cached_property, gen_item_bank
-from tirt import BayesProbitModel, MLProbitModel, MLLogitModel, BayesLogitModel
-from cs import irt_consistency_score
+from .exception import UnknownModelError, IterMethodError
+from .utils import gen_item_dict, random_params, cached_property, gen_item_bank
+from .tirt import BayesProbitModel, MLProbitModel, MLLogitModel, BayesLogitModel
+from .cs import irt_consistency_score
+from functools import partial
 
 
 class BaseSimTirt(object):
@@ -12,7 +14,7 @@ class BaseSimTirt(object):
     MODEL = {'bayes_probit': BayesProbitModel, 'ml_probit': MLProbitModel,
              'bayes_logit': BayesLogitModel, 'ml_logit': MLLogitModel}
 
-    def __init__(self, subject_nums, trait_size, model='bayes_probit',
+    def __init__(self, subject_nums, trait_size, model='bayes_probit', sigma=None,
                  iter_method='newton', block_size=3, lower=1, upper=4, avg=0, std=1):
         """
 
@@ -53,11 +55,11 @@ class BaseSimTirt(object):
         self._avg = avg
         self.std = std
         self._iter_method = iter_method
-        self._model = self._get_model(model)
+        self._model = self._get_model(model, sigma)
 
-    def _get_model(self, model):
+    def _get_model(self, model, sigma):
         try:
-            return self.MODEL[model]
+            return partial(self.MODEL[model], sigma=sigma)
         except KeyError:
             raise UnknownModelError('unknown model, must be "bayes_probit" or '
                                     '"ml_probit" or "bayes_logit" or "ml_logit"')
@@ -132,7 +134,7 @@ class SimFixedTirt(BaseSimTirt):
             except Exception as e:
                 theta_list.append(np.nan)
         mean_error = self._get_mean_error(np.array(theta_list))
-        print '模拟结束，平均误差{0}'.format(mean_error)
+        print('模拟结束，平均误差{0}'.format(mean_error))
         self.theta_list = theta_list
         return theta_list
 
@@ -254,18 +256,20 @@ class SimAdaptiveTirt(BaseSimTirt):
 
     def _get_random_choice_params(self, theta_idx):
         first_rand_items = self._get_random_choice_items(theta_idx)
-        slop = []
-        threshold = []
-        for item in first_rand_items:
-            slop.extend(item['params'][0])
-            threshold.extend(item['params'][1])
-        return np.array(slop), np.array(threshold)
+        slop = np.zeros((len(first_rand_items) * self._block_size, self._trait_size))
+        threshold = np.zeros(len(first_rand_items) * self._block_size)
+        for i, item in enumerate(first_rand_items):
+            slop[i:i + self._block_size] = item['params'][0]
+            threshold[i:i + self._block_size] = item['params'][1]
+        return slop, threshold
 
     def _first_random(self, theta, theta_idx):
         # 第一阶段，随机抽题
         slop, threshold = self._get_random_choice_params(theta_idx)
         p_list = self._model(slop, threshold).prob(theta)
         score = np.random.binomial(1, p_list, len(p_list))
+        print('当前作答结果：')
+        print(score)
         init_theta = self._get_init_theta()
         model = self._model(slop, threshold, init_theta, score, self._iter_method)
         theta = model.solve
@@ -276,13 +280,10 @@ class SimAdaptiveTirt(BaseSimTirt):
 
     def _second_random(self, theta, theta_idx):
         item = self._get_next_item(theta_idx)
-
         score = self._get_next_score(item, theta, theta_idx)
-        # print score
-
+        print('当前作答结果:')
+        print(score)
         est_theta = self._get_estimate_theta(score, theta_idx)
-        # print est_theta
-        # print np.mean(np.abs(est_theta - theta))
         self._add_theta(theta_idx, est_theta)
         return est_theta
 
@@ -314,12 +315,13 @@ class SimAdaptiveTirt(BaseSimTirt):
         slop = self._get_slop(theta_idx)
         threshold = self._get_threshold(theta_idx)
         test_info = self._model(slop, threshold).info(est_theta)
-        info_list = []
-        for _item in items:
+        print('误差方差平均值：%f' % np.mean(np.diag(np.linalg.inv(test_info)) ** 0.5))
+        info_list = np.zeros_like(items)
+        for i, _item in enumerate(items):
             _slop, _threshold = _item['params']
             item_info = self._model(_slop, _threshold).info(est_theta)
-            info_list.append(np.linalg.det(test_info + item_info))
-        max_info_idx = np.array(info_list).argmax()
+            info_list[i] = np.linalg.det(test_info + item_info)
+        max_info_idx = info_list.argmax()
         item = items[max_info_idx]
         idx = list(self._get_can_use_idx(theta_idx))[max_info_idx]
         self._add_answered_item_idx(theta_idx, [idx])
@@ -327,20 +329,16 @@ class SimAdaptiveTirt(BaseSimTirt):
 
     def sim(self):
         thetas = self.random_thetas
-        theta_list = []
+        theta_list = np.zeros((self._subject_nums, self._trait_size))
         for i, theta in enumerate(thetas):
-            try:
-                est_theta = np.nan
-                self._first_random(theta, i)
-                for j in range(self._max_sec_item_size):
-                    est_theta = self._second_random(theta, i)
-                print u'第{0}个被试模拟成功！'.format(i + 1)
-            except Exception as e:
-                print e
-                continue
-            theta_list.append(est_theta)
-        mean_error = self._get_mean_error(np.array(theta_list))
-        print '模拟结束，平均误差{0}'.format(mean_error)
+            est_theta = np.nan
+            self._first_random(theta, i)
+            for j in range(self._max_sec_item_size):
+                est_theta = self._second_random(theta, i)
+            print(u'第{0}个被试模拟成功！'.format(i + 1))
+            theta_list[i] = est_theta
+        mean_error = self._get_mean_error(theta_list)
+        print('模拟结束，平均误差{0}'.format(mean_error))
         return theta_list
 
 

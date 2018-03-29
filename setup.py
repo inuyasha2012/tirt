@@ -78,7 +78,7 @@ from setuptools import setup
 
 setup(
     name='tirt',
-    version='0.0.4',
+    version='0.0.5',
     packages=['tirt'],
     url='https://github.com/inuyasha2012/tirt',
     license='MIT',
@@ -89,5 +89,6 @@ setup(
     install_requires=['numpy', 'scipy'],
     classifiers=[
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
     ]
 )

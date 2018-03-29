@@ -1,6 +1,7 @@
 # coding=utf-8
+from __future__ import unicode_literals, print_function, absolute_import
 import numpy as np
-from tirt import BaseModel
+from .tirt import BaseModel
 
 
 def irt_consistency_score(model, theta=None):

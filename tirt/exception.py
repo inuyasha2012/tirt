@@ -1,3 +1,6 @@
+from __future__ import unicode_literals, print_function, absolute_import
+
+
 class ConvergenceError(Exception):
     """
     no convergence

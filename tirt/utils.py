@@ -1,7 +1,8 @@
 # coding=utf-8
+from __future__ import unicode_literals, print_function, absolute_import
 import random
 import numpy as np
-from settings import TRIPLETS_PERMUTATION
+from .settings import TRIPLETS_PERMUTATION
 
 
 def _gen_item_pattern(trait_size, items_size_per_dim, block_size=3):
@@ -42,7 +43,7 @@ def _gen_item_dt(items):
 def gen_item_dict(trait_size, items_size_per_dim, block_size=3):
     items = _gen_item_pattern(trait_size, items_size_per_dim, block_size)
     item_dt = _gen_item_dt(items)
-    print u'试题生成成功！'
+    print(u'试题生成成功！')
     return item_dt
 
 
@@ -74,13 +75,13 @@ def gen_item_bank(trait_size, item_size, block_size=3, lower=1, upper=4, avg=0, 
         raise ValueError('std must be int or float')
 
     trait_list = range(trait_size)
-    item_bank = []
+    item_bank = np.zeros(item_size, dtype=np.object)
     for i in range(item_size):
         _item_list = np.random.choice(trait_list, block_size, False)
         _item_dt = _gen_item_dt(_item_list)
         params = random_params(_item_dt, trait_size, block_size=block_size, lower=lower, upper=upper, avg=avg, std=std)
-        item_bank.append({'dim': _item_list, 'params': params})
-    return np.array(item_bank)
+        item_bank[i] = ({'dim': _item_list, 'params': params})
+    return item_bank
 
 
 def _sim_score(block_nums):
@@ -90,7 +91,7 @@ def _sim_score(block_nums):
     :return: 配对比较得分列表
     """
     score = []
-    for j in range(block_nums):
+    for j in range(int(block_nums)):
         _score = random.choice(TRIPLETS_PERMUTATION)
         score.extend(_score)
     score = np.array(score)
@@ -129,7 +130,7 @@ def _get_triplet_ipsative_score(pair_score, trait_size, item_dt, item_sign):
     :param item_sign: list(1|-1), 试题正反向列表
     :return: list(int), 自比分数列表
     """
-    score = [0 for i in range(trait_size)]
+    score = np.zeros(trait_size)
     for j in range(len(pair_score) / 3):
         i1i2 = pair_score[j * 3]
         i1i3 = pair_score[j * 3 + 1]
@@ -187,14 +188,14 @@ def _triplet_random_params(item_dt, trait_size, lower=1, upper=4, avg=0, std=1):
     :param upper: int(>lower), uniform分布的上界
     :return: tuple(ndarray, ndarray), 斜率和阈值
     """
-    keys = item_dt.keys()
+    keys = list(item_dt.keys())
     pair_nums = len(keys)
     keys.sort()
     a = np.zeros((pair_nums, trait_size))
     a1 = np.random.uniform(lower, upper, pair_nums)
     a2 = np.random.uniform(lower, upper, pair_nums)
 
-    for i in range(len(keys) / 3):
+    for i in range(int(len(keys) / 3)):
         i1 = item_dt[3 * i]
         i2 = item_dt[3 * i + 1]
         i3 = item_dt[3 * i + 2]

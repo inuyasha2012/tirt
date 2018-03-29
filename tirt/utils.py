@@ -161,8 +161,8 @@ def _pair_random_params(item_dt, trait_size, lower=1, upper=4, avg=0, std=1):
     :param upper: int(>lower), uniform分布的上界
     :return: tuple(ndarray, ndarray), 斜率和阈值
     """
-    keys = item_dt.keys()
-    pair_nums = len(keys) / 2
+    keys = list(item_dt.keys())
+    pair_nums = int(len(keys) / 2)
     keys.sort()
     a = np.zeros((pair_nums, trait_size))
     a1 = np.random.uniform(lower, upper, pair_nums * 2)
